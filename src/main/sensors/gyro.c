@@ -31,6 +31,7 @@
 #include "common/axis.h"
 #include "common/maths.h"
 #include "common/filter.h"
+#include "common/kalman.h"
 
 #include "config/feature.h"
 
@@ -196,6 +197,13 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->dyn_notch_q = 120;
     gyroConfig->dyn_notch_min_hz = 150;
     gyroConfig->gyro_filter_debug_axis = FD_ROLL;
+#ifdef USE_IMUF_108_KALMAN_FILTER
+    gyroConfig->imuf_roll_q = DEFAULT_ROLL_Q;
+    gyroConfig->imuf_pitch_q= DEFAULT_PITCH_Q;
+    gyroConfig->imuf_yaw_q= DEFAULT_YAW_Q;
+    gyroConfig->imuf_w = DEF_WINDOW_SIZE;
+#endif
+
 }
 
 #ifdef USE_MULTI_GYRO
@@ -736,6 +744,10 @@ static void gyroInitSensorFilters(gyroSensor_t *gyroSensor)
 void gyroInitFilters(void)
 {
     uint16_t gyro_lowpass_hz = gyroConfig()->gyro_lowpass_hz;
+
+#ifdef USE_IMUF_108_KALMAN_FILTER
+    kalman_init();
+#endif
 
 #ifdef USE_DYN_LPF
     if (gyroConfig()->dyn_lpf_gyro_min_hz > 0) {
