@@ -44,6 +44,7 @@
 #define MINIMAL_CLI
 #define USE_DSHOT
 #define USE_GYRO_DATA_ANALYSE
+#define USE_IMUF_108_KALMAN_FILTER
 #endif
 
 #ifdef STM32F4
@@ -69,6 +70,7 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_CUSTOM_DEFAULTS_ADDRESS
+#define USE_IMUF_108_KALMAN_FILTER
 // Re-enable this after 4.0 has been released, and remove the define from STM32F4DISCOVERY
 //#define USE_SPI_TRANSACTION
 
@@ -101,6 +103,7 @@
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
 #define USE_CUSTOM_DEFAULTS_ADDRESS
+#define USE_IMUF_108_KALMAN_FILTER
 // Re-enable this after 4.0 has been released, and remove the define from STM32F4DISCOVERY
 //#define USE_SPI_TRANSACTION
 #endif // STM32F7
@@ -119,6 +122,7 @@
 #define USE_DMA_SPEC
 #define USE_TIMER_MGMT
 #define USE_PERSISTENT_OBJECTS
+#define USE_IMUF_108_KALMAN_FILTER
 #endif
 
 #if defined(STM32F4) || defined(STM32F7) || defined(STM32H7)
