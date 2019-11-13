@@ -202,6 +202,8 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->imuf_pitch_q= DEFAULT_PITCH_Q;
     gyroConfig->imuf_yaw_q= DEFAULT_YAW_Q;
     gyroConfig->imuf_w = DEF_WINDOW_SIZE;
+    gyroConfig->dynlpf_fmin = FC_MIN;
+    gyroConfig->dynlpf_fmax = FC_MAX;
 #endif
 
 }
@@ -747,6 +749,7 @@ void gyroInitFilters(void)
 
 #ifdef USE_IMUF_108_KALMAN_FILTER
     kalman_init();
+    init_dynLpf();
 #endif
 
 #ifdef USE_DYN_LPF

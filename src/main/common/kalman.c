@@ -58,11 +58,20 @@ typedef struct variance
     float inverseN;
 } variance_t;
 
+typedef struct {
+    pt1Filter_t pt1;    //PT1 filter
+    float Fc;           //Cutoff freq
+    bool Dyn_Fc;         //Dynamic E or Fixed E
+} dynLpf_t;
+
 
 variance_t varStruct;
 volatile float setPoint[3];
 kalman_t kalmanFilterStateRate[3];
 
+
+kalman_t kalmanFilterStateRate[3];
+dynLpf_t dynLpf[3];
 
 void init_kalman(kalman_t *filter, float q)
 {
@@ -73,6 +82,7 @@ void init_kalman(kalman_t *filter, float q)
     filter->e = 1.0f;
     filter->Dyn_e = false;
 }
+
 
 void kalman_init(void)
 {
@@ -142,7 +152,7 @@ void update_kalman_covariance(volatile float *gyroRateData)
     kalmanFilterStateRate[YAW].r = squirt * VARIANCE_SCALE; 
 }
 
-inline float kalman_process(kalman_t* kalmanState, volatile float input, volatile float target) {
+FAST_CODE float kalman_process(kalman_t* kalmanState, volatile float input, volatile float target) {
     //project the state ahead using acceleration
     kalmanState->x += (kalmanState->x - kalmanState->lastX);
     
@@ -151,15 +161,10 @@ inline float kalman_process(kalman_t* kalmanState, volatile float input, volatil
     //update last state
     kalmanState->lastX = kalmanState->x;
 
-
-
     //if (target != 0.0f) {
 
     //Enable/Disable dynamic "e" value according to gyro/setpoint (With hysteresis).
     //Remove noise, like when target=5°/s and gyro=0.1°/s. Ratio doesn't mean much at theses low values.
-    #define DYN_E_LIMIT     10.0f  //Value in °/s
-    #define DYN_E_HYTEREIS  2.0f  //Value in °/s
-
     if(kalmanState->Dyn_e) {
         //Disable Dyn_e when (target/kalmanState->lastX) doesn't mean much
         if (((float)(fabs(target)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS)) && ((float)(fabs(kalmanState->lastX)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS))) {
@@ -171,16 +176,37 @@ inline float kalman_process(kalman_t* kalmanState, volatile float input, volatil
             kalmanState->Dyn_e = true;
         }
     }
-
-
-
-
     if(kalmanState->Dyn_e) {
-        kalmanState->e = fabs(1.0f - (target/kalmanState->lastX));
+        //kalmanState->e = fabs(1.0f - (target/kalmanState->lastX));
+
+        //Avoid division by 0.0f
+        if(target == 0.0f)              { target = 0.0001f; }
+        if(kalmanState->lastX == 0.0f)  { kalmanState->lastX = 0.0001f; }
+
+        kalmanState->e = (float)fabs(1 - target/kalmanState->lastX);
+
+        //Limit
+        if(kalmanState->e > E_MAX)  { kalmanState->e = E_MAX; }
+        if(kalmanState->e < E_MIN)  { kalmanState->e = E_MIN; }
+
     } else {
-        kalmanState->e = 1.0f;
+        kalmanState->e = E_MIN;
     }
-    
+
+    // if (target != 0.0f && kalmanState->lastX != 0.0f) {
+
+    //     kalmanState->e = fabs(1-target/kalmanState->lastX);
+
+    //     //Limit
+    //     if(kalmanState->e > 1.0f) {
+    //         kalmanState->e = 1.0f;
+    //     }
+
+    // } else {
+    //     kalmanState->e = 0.1f;
+    // }
+
+
     //prediction update
     kalmanState->p = kalmanState->p + (kalmanState->q * kalmanState->e);
 
@@ -191,17 +217,133 @@ inline float kalman_process(kalman_t* kalmanState, volatile float input, volatil
     return kalmanState->x;
 }
 
+void init_dynLpf(void)
+{
+    const float gyroDt = gyro.targetLooptime * 1e-6f;
+
+    const float gain = pt1FilterGain(gyroConfigMutable()->dynlpf_fmin, gyroDt);
+
+    pt1FilterInit(&dynLpf[0].pt1, gain);
+    pt1FilterInit(&dynLpf[1].pt1, gain);
+    pt1FilterInit(&dynLpf[2].pt1, gain);
+
+    dynLpf[0].Fc = gyroConfigMutable()->dynlpf_fmin;
+    dynLpf[1].Fc = gyroConfigMutable()->dynlpf_fmin;
+    dynLpf[2].Fc = gyroConfigMutable()->dynlpf_fmin;
+
+    dynLpf[0].Dyn_Fc = false;
+    dynLpf[1].Dyn_Fc = false;
+    dynLpf[2].Dyn_Fc = false;
+}
+
+
+FAST_CODE float dynLpf_process(dynLpf_t* filter, float input, float target) {
+
+float newFc;
+float Fmin = gyroConfigMutable()->dynlpf_fmin;
+float Fmax = gyroConfigMutable()->dynlpf_fmax;
+
+    //Check if we are in dynamic or fixed "e"
+    //---------------------------------------
+        if(filter->Dyn_Fc) {
+            //Disable Dyn_Fc when (target/kalmanState->lastX) doesn't mean much
+            if (((float)(fabs(target)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS)) && ((float)(fabs(filter->pt1.state)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS))) {
+                filter->Dyn_Fc = false;
+            }
+        }else{
+            //Enable Dyn_Fc when stick or Quad move
+            if (((float)(fabs(target)) >= (DYN_E_LIMIT + DYN_E_HYTEREIS)) || ((float)(fabs(filter->pt1.state)) >= (DYN_E_LIMIT + DYN_E_HYTEREIS))) {
+                filter->Dyn_Fc = true;
+            }
+        }
+
+    //Compute e & Fc
+    //--------------
+        if(filter->Dyn_Fc) {
+            
+        //Avoid division by 0.0f
+            if(target == 0.0f)              { target = 0.00001f; }
+            if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.00001f; }
+
+        //Compute e factor
+            float e;
+            switch(gyroConfigMutable()->imuf_w) {
+                case 300 :
+                    e = (3.0f * (float)(fabs( target - filter->pt1.state )) / ((target + filter->pt1.state) * 0.5f ));
+                    break;
+                default :
+                    e = fabs(1-target/filter->pt1.state);
+                    break;
+            }
+
+        //New freq
+            newFc = Fmax * e;
+
+        //Limit
+            if(newFc > Fmax)  { newFc  = Fmax; }
+            if(newFc < Fmin)  { newFc  = Fmin; }
+
+        } else {
+            newFc  = Fmin;
+        }
+
+    //Update PT1 filter
+    //------------------
+        const float gyroDt = gyro.targetLooptime * 1e-6f;
+        pt1FilterUpdateCutoff(&filter->pt1, pt1FilterGain(newFc, gyroDt));
+        filter->Fc = newFc;
+
+    //Apply filter
+    //------------
+        float output = pt1FilterApply(&filter->pt1, input);
+
+ return output;
+}
+
+
 void kalman_update(float* input, float* output)
 {
-    if(gyroConfigMutable()->imuf_w > 0) {
-        setPoint[ROLL] = getSetpointRate(ROLL);
-        setPoint[PITCH] = getSetpointRate(PITCH);
-        setPoint[YAW] = getSetpointRate(YAW);
 
-        update_kalman_covariance(input);
-        output[ROLL] = kalman_process(&kalmanFilterStateRate[ROLL], input[ROLL], setPoint[ROLL]);
-        output[PITCH] = kalman_process(&kalmanFilterStateRate[PITCH], input[PITCH], setPoint[PITCH]);
-        output[YAW] = kalman_process(&kalmanFilterStateRate[YAW], input[YAW], setPoint[YAW]);
+    //Get setpoints
+    //--------------
+        setPoint[ROLL]  = getSetpointRate(ROLL);
+        setPoint[PITCH] = getSetpointRate(PITCH);
+        setPoint[YAW]   = getSetpointRate(YAW);
+
+    //Check which type of filter to apply
+    //-----------------------------------
+    if(gyroConfigMutable()->imuf_w > 0) {
+
+        if(gyroConfigMutable()->imuf_w < 200) {
+
+        //Kalman
+        //------
+            update_kalman_covariance(input);
+            output[ROLL] = kalman_process(&kalmanFilterStateRate[ROLL], input[ROLL], setPoint[ROLL]);
+            output[PITCH] = kalman_process(&kalmanFilterStateRate[PITCH], input[PITCH], setPoint[PITCH]);
+            output[YAW] = kalman_process(&kalmanFilterStateRate[YAW], input[YAW], setPoint[YAW]);
+
+            //Blackbox
+            DEBUG_SET(DEBUG_KALMAN, 0, (int16_t)(input[ROLL]));
+            DEBUG_SET(DEBUG_KALMAN, 1, (int16_t)(output[ROLL]));
+            DEBUG_SET(DEBUG_KALMAN, 2, (int16_t)(kalmanFilterStateRate[ROLL].e * 100.0f));
+            DEBUG_SET(DEBUG_KALMAN, 3, (int16_t)(kalmanFilterStateRate[ROLL].k * 10000.0f));
+
+        } else {
+
+        //Dyn_PT1
+        //-------
+            output[ROLL]  = dynLpf_process(&dynLpf[ROLL],   input[ROLL],  setPoint[ROLL]);
+            output[PITCH] = dynLpf_process(&dynLpf[PITCH],  input[PITCH], setPoint[PITCH]);
+            output[YAW]   = dynLpf_process(&dynLpf[YAW],    input[YAW],  setPoint[YAW]);
+
+            //Blackbox
+            DEBUG_SET(DEBUG_KALMAN, 0, (int16_t)(input[ROLL]));
+            DEBUG_SET(DEBUG_KALMAN, 1, (int16_t)(output[ROLL]));
+            DEBUG_SET(DEBUG_KALMAN, 2, (int16_t)(dynLpf[ROLL].Fc));
+            DEBUG_SET(DEBUG_KALMAN, 3, (int16_t)(dynLpf[ROLL].pt1.k * 10000.0f));
+        }
+
     }else{
         //If Kalman is Off copy input to output
         output[ROLL] = input[ROLL];
@@ -209,16 +351,6 @@ void kalman_update(float* input, float* output)
         output[YAW]  = input[YAW];
     }
 
-    //Blackbox
-    DEBUG_SET(DEBUG_KALMAN, 0, (int16_t)(input[ROLL]));
-    DEBUG_SET(DEBUG_KALMAN, 1, (int16_t)(output[ROLL]));
-    DEBUG_SET(DEBUG_KALMAN, 2, (int16_t)(kalmanFilterStateRate[ROLL].e * 100.0f));
-    DEBUG_SET(DEBUG_KALMAN, 3, (int16_t)(kalmanFilterStateRate[ROLL].k * 10000.0f));
-
-    //For simply test if Kalman is called
-    //static uint16_t KalmanAliveCounter = 0;
-    //KalmanAliveCounter++;
-    //DEBUG_SET(DEBUG_KALMAN, 3, (uint16_t)KalmanAliveCounter);
 }
 
 #pragma GCC pop_options

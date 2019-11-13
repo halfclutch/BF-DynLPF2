@@ -157,6 +157,8 @@ typedef struct gyroConfig_s {
     uint16_t imuf_pitch_q;
     uint16_t imuf_yaw_q;
     uint16_t imuf_w;
+    uint16_t dynlpf_fmin;
+    uint16_t dynlpf_fmax;
 #endif
 } gyroConfig_t;
 
