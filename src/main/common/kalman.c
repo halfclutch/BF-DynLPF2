@@ -73,6 +73,11 @@ kalman_t kalmanFilterStateRate[3];
 kalman_t kalmanFilterStateRate[3];
 dynLpf_t dynLpf[3];
 
+//Prototypes
+FAST_CODE float dynLpf_process(dynLpf_t* filter, float input, float target);
+void init_dynLpf(void);
+
+
 void init_kalman(kalman_t *filter, float q)
 {
     memset(filter, 0, sizeof(kalman_t));
@@ -99,6 +104,29 @@ void kalman_init(void)
     varStruct.inverseN = 1.0f/gyroConfigMutable()->imuf_w;
 }
 
+//////////////////////////////
+//                          //
+//       DYN PT1 INIT       //
+//                          //
+//////////////////////////////
+void init_dynLpf(void)
+{
+    const float gyroDt = gyro.targetLooptime * 1e-6f;
+
+    const float gain = pt1FilterGain(gyroConfigMutable()->dynlpf_fmin, gyroDt);
+
+    pt1FilterInit(&dynLpf[0].pt1, gain);
+    pt1FilterInit(&dynLpf[1].pt1, gain);
+    pt1FilterInit(&dynLpf[2].pt1, gain);
+
+    dynLpf[0].Fc = gyroConfigMutable()->dynlpf_fmin;
+    dynLpf[1].Fc = gyroConfigMutable()->dynlpf_fmin;
+    dynLpf[2].Fc = gyroConfigMutable()->dynlpf_fmin;
+
+    dynLpf[0].Dyn_Fc = false;
+    dynLpf[1].Dyn_Fc = false;
+    dynLpf[2].Dyn_Fc = false;
+}
 
 #pragma GCC push_options
 #pragma GCC optimize("O3")
@@ -217,89 +245,6 @@ FAST_CODE float kalman_process(kalman_t* kalmanState, volatile float input, vola
     return kalmanState->x;
 }
 
-void init_dynLpf(void)
-{
-    const float gyroDt = gyro.targetLooptime * 1e-6f;
-
-    const float gain = pt1FilterGain(gyroConfigMutable()->dynlpf_fmin, gyroDt);
-
-    pt1FilterInit(&dynLpf[0].pt1, gain);
-    pt1FilterInit(&dynLpf[1].pt1, gain);
-    pt1FilterInit(&dynLpf[2].pt1, gain);
-
-    dynLpf[0].Fc = gyroConfigMutable()->dynlpf_fmin;
-    dynLpf[1].Fc = gyroConfigMutable()->dynlpf_fmin;
-    dynLpf[2].Fc = gyroConfigMutable()->dynlpf_fmin;
-
-    dynLpf[0].Dyn_Fc = false;
-    dynLpf[1].Dyn_Fc = false;
-    dynLpf[2].Dyn_Fc = false;
-}
-
-
-FAST_CODE float dynLpf_process(dynLpf_t* filter, float input, float target) {
-
-float newFc;
-float Fmin = gyroConfigMutable()->dynlpf_fmin;
-float Fmax = gyroConfigMutable()->dynlpf_fmax;
-
-    //Check if we are in dynamic or fixed "e"
-    //---------------------------------------
-        if(filter->Dyn_Fc) {
-            //Disable Dyn_Fc when (target/kalmanState->lastX) doesn't mean much
-            if (((float)(fabs(target)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS)) && ((float)(fabs(filter->pt1.state)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS))) {
-                filter->Dyn_Fc = false;
-            }
-        }else{
-            //Enable Dyn_Fc when stick or Quad move
-            if (((float)(fabs(target)) >= (DYN_E_LIMIT + DYN_E_HYTEREIS)) || ((float)(fabs(filter->pt1.state)) >= (DYN_E_LIMIT + DYN_E_HYTEREIS))) {
-                filter->Dyn_Fc = true;
-            }
-        }
-
-    //Compute e & Fc
-    //--------------
-        if(filter->Dyn_Fc) {
-            
-        //Avoid division by 0.0f
-            if(target == 0.0f)              { target = 0.00001f; }
-            if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.00001f; }
-
-        //Compute e factor
-            float e;
-            switch(gyroConfigMutable()->imuf_w) {
-                case 300 :
-                    e = (3.0f * (float)(fabs( target - filter->pt1.state )) / ((target + filter->pt1.state) * 0.5f ));
-                    break;
-                default :
-                    e = fabs(1-target/filter->pt1.state);
-                    break;
-            }
-
-        //New freq
-            newFc = Fmax * e;
-
-        //Limit
-            if(newFc > Fmax)  { newFc  = Fmax; }
-            if(newFc < Fmin)  { newFc  = Fmin; }
-
-        } else {
-            newFc  = Fmin;
-        }
-
-    //Update PT1 filter
-    //------------------
-        const float gyroDt = gyro.targetLooptime * 1e-6f;
-        pt1FilterUpdateCutoff(&filter->pt1, pt1FilterGain(newFc, gyroDt));
-        filter->Fc = newFc;
-
-    //Apply filter
-    //------------
-        float output = pt1FilterApply(&filter->pt1, input);
-
- return output;
-}
-
 
 void kalman_update(float* input, float* output)
 {
@@ -352,5 +297,76 @@ void kalman_update(float* input, float* output)
     }
 
 }
+
+//////////////////////////////
+//                          //
+//      DYN PT1 PROCESS     //
+//                          //
+//////////////////////////////
+FAST_CODE float dynLpf_process(dynLpf_t* filter, float input, float target) {
+
+float newFc;
+float Fmin = gyroConfigMutable()->dynlpf_fmin;
+float Fmax = gyroConfigMutable()->dynlpf_fmax;
+
+    //Check if we are in dynamic or fixed "e"
+    //---------------------------------------
+        if(filter->Dyn_Fc) {
+            //Disable Dyn_Fc when (target/kalmanState->lastX) doesn't mean much
+            if (((float)(fabs(target)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS)) && ((float)(fabs(filter->pt1.state)) <= (DYN_E_LIMIT - DYN_E_HYTEREIS))) {
+                filter->Dyn_Fc = false;
+            }
+        }else{
+            //Enable Dyn_Fc when stick or Quad move
+            if (((float)(fabs(target)) >= (DYN_E_LIMIT + DYN_E_HYTEREIS)) || ((float)(fabs(filter->pt1.state)) >= (DYN_E_LIMIT + DYN_E_HYTEREIS))) {
+                filter->Dyn_Fc = true;
+            }
+        }
+
+    //Compute e & Fc
+    //--------------
+        if(filter->Dyn_Fc) {
+            
+        //Avoid division by 0.0f
+            if(target == 0.0f)              { target = 0.00001f; }
+            if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.00001f; }
+
+        //Compute e factor
+            float e;
+            switch(gyroConfigMutable()->imuf_w) {
+                case 300 :
+                    //e = 3 * Error / Avg(target;filtered)
+                    e = (3.0f * (float)(fabs( target - filter->pt1.state )) / ((target + filter->pt1.state) * 0.5f ));
+                    break;
+                default :
+                    //IMU-F style
+                    e = fabs(1-target/filter->pt1.state);
+                    break;
+            }
+
+        //New freq
+            newFc = Fmax * e;
+
+        //Limit
+            if(newFc > Fmax)  { newFc  = Fmax; }
+            if(newFc < Fmin)  { newFc  = Fmin; }
+
+        } else {
+            newFc  = Fmin;
+        }
+
+    //Update PT1 filter
+    //------------------
+        const float gyroDt = gyro.targetLooptime * 1e-6f;
+        pt1FilterUpdateCutoff(&filter->pt1, pt1FilterGain(newFc, gyroDt));
+        filter->Fc = newFc;
+
+    //Apply filter
+    //------------
+        float output = pt1FilterApply(&filter->pt1, input);
+
+ return output;
+}
+
 
 #pragma GCC pop_options
