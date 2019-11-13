@@ -202,8 +202,9 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->imuf_pitch_q= DEFAULT_PITCH_Q;
     gyroConfig->imuf_yaw_q= DEFAULT_YAW_Q;
     gyroConfig->imuf_w = DEF_WINDOW_SIZE;
-    gyroConfig->dynlpf_fmin = FC_MIN;
-    gyroConfig->dynlpf_fmax = FC_MAX;
+    gyroConfig->dynlpf_fmin = DEFAULT_FC_MIN;
+    gyroConfig->dynlpf_fmax = DEFAULT_FC_MAX;
+    gyroConfig->dynlpf_gain = DEFAULT_DYN_LPF_GAIN;
 #endif
 
 }

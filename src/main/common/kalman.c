@@ -306,8 +306,9 @@ void kalman_update(float* input, float* output)
 FAST_CODE float dynLpf_process(dynLpf_t* filter, float input, float target) {
 
 float newFc;
-float Fmin = gyroConfigMutable()->dynlpf_fmin;
-float Fmax = gyroConfigMutable()->dynlpf_fmax;
+float Fmin    = (float)gyroConfigMutable()->dynlpf_fmin;
+float Fmax    = (float)gyroConfigMutable()->dynlpf_fmax;
+float DynGain = (float)(gyroConfigMutable()->dynlpf_gain) * 0.1f;
 
     //Check if we are in dynamic or fixed "e"
     //---------------------------------------
@@ -335,8 +336,8 @@ float Fmax = gyroConfigMutable()->dynlpf_fmax;
             float e;
             switch(gyroConfigMutable()->imuf_w) {
                 case 300 :
-                    //e = 3 * Error / Avg(target;filtered)
-                    e = (3.0f * (float)(fabs( target - filter->pt1.state )) / ((target + filter->pt1.state) * 0.5f ));
+                    //e = DynGain * Error / Avg(target;filtered)
+                    e = (DynGain * (float)(fabs( target - filter->pt1.state )) / ((target + filter->pt1.state) * 0.5f ));
                     break;
                 default :
                     //IMU-F style
