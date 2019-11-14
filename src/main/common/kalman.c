@@ -336,8 +336,10 @@ float DynGain = (float)(gyroConfigMutable()->dynlpf_gain) * 0.1f;
             float e;
             switch(gyroConfigMutable()->imuf_w) {
                 case 300 :
-                    //e = DynGain * Error / Avg(target;filtered)
-                    e = (DynGain * (float)(fabs( target - filter->pt1.state )) / ((target + filter->pt1.state) * 0.5f ));
+                    //e = Gain * Error / Avg(target;filtered)
+                    float Mean  = (target + filter->pt1.state) * 0.5f;          //Traget Gyro mean
+                    float Error = (float)(fabs( target - filter->pt1.state ));  //Target Gyro error 
+                    e = (DynGain * Error / Mean );
                     break;
                 default :
                     //IMU-F style
