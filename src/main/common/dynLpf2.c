@@ -144,7 +144,7 @@ float setPoint, output;
 
   //Blackbox
     if(axis == ROLL) {
-        DEBUG_SET(DEBUG_DYN_LPF2, 0, (int16_t)(setPoint));
+        DEBUG_SET(DEBUG_DYN_LPF2, 0, (int16_t)(input));
         DEBUG_SET(DEBUG_DYN_LPF2, 1, (int16_t)(output));
         DEBUG_SET(DEBUG_DYN_LPF2, 2, (int16_t)(dynLpf[axis].Fc));
         DEBUG_SET(DEBUG_DYN_LPF2, 3, (int16_t)(dynLpf[axis].pt1.k * 10000.0f));
