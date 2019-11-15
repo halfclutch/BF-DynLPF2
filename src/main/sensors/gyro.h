@@ -152,11 +152,7 @@ typedef struct gyroConfig_s {
     uint16_t dyn_notch_q;
     uint16_t dyn_notch_min_hz;
     uint8_t  gyro_filter_debug_axis;
-#ifdef USE_IMUF_108_KALMAN_FILTER
-    uint16_t imuf_roll_q;
-    uint16_t imuf_pitch_q;
-    uint16_t imuf_yaw_q;
-    uint16_t imuf_w;
+#ifdef USE_DYN_LPF2
     uint16_t dynlpf_fmin;
     uint16_t dynlpf_fmax;
     uint16_t dynlpf_gain;

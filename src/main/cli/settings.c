@@ -632,11 +632,7 @@ const clivalue_t valueTable[] = {
     { "yaw_spin_recovery",          VAR_UINT8  | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, yaw_spin_recovery) },
     { "yaw_spin_threshold",         VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 500,  1950 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, yaw_spin_threshold) },
 #endif
-#ifdef USE_IMUF_108_KALMAN_FILTER
-    { "imuf_roll_q",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 16000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, imuf_roll_q) },
-    { "imuf_pitch_q",               VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 16000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, imuf_pitch_q) },
-    { "imuf_yaw_q",                 VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 16000 }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, imuf_yaw_q) },
-    { "imuf_w",                     VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 300 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, imuf_w) },
+#ifdef USE_DYN_LPF2
     { "dynlpf_fmin",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 1000 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_fmin) },
     { "dynlpf_fmax",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 1000 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_fmax) },
     { "dynlpf_gain",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0,  100 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_gain) },

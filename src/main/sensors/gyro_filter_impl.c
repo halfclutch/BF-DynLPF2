@@ -22,8 +22,6 @@
 
 static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
 {
-    DEBUG_SET(DEBUG_KALMAN, 0, (int16_t)(gyro.gyroADC[X]));
-
     for (int axis = 0; axis < XYZ_AXIS_COUNT; axis++) {
         GYRO_FILTER_DEBUG_SET(DEBUG_GYRO_RAW, axis, gyro.rawSensorDev->gyroADCRaw[axis]);
         // scale gyro output to degrees per second
@@ -65,24 +63,13 @@ static FAST_CODE void GYRO_FILTER_FUNCTION_NAME(void)
         }
 #endif
 
+#ifdef USE_DYN_LPF2
+        gyroADCf = dynLpf2Apply(axis, gyroADCf);
+#endif
+
         // DEBUG_GYRO_FILTERED records the scaled, filtered, after all software filtering has been applied.
         GYRO_FILTER_DEBUG_SET(DEBUG_GYRO_FILTERED, axis, lrintf(gyroADCf));
 
         gyro.gyroADCf[axis] = gyroADCf;
     }
-
-#ifdef USE_IMUF_108_KALMAN_FILTER
-    float KalmanInput[3];
-    float Kalmanoutput[3];
-
-    KalmanInput[X] = gyro.gyroADCf[X];
-    KalmanInput[Y] = gyro.gyroADCf[Y];
-    KalmanInput[Z] = gyro.gyroADCf[Z];
-
-    kalman_update(KalmanInput, Kalmanoutput);
-
-    gyro.gyroADCf[X]  = Kalmanoutput[X];
-    gyro.gyroADCf[Y]  = Kalmanoutput[Y];
-    gyro.gyroADCf[Z]  = Kalmanoutput[Z]; 
-#endif
 }
