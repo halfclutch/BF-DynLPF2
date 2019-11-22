@@ -201,6 +201,8 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->dynlpf_fmin = DEFAULT_FC_MIN;
     gyroConfig->dynlpf_fmax = DEFAULT_FC_MAX;
     gyroConfig->dynlpf_gain = DEFAULT_DYN_LPF_GAIN;
+    gyroConfig->dynlpf_fc_fc = DEFAULT_DYN_LPF_FC_FC;
+    gyroConfig->dynlpf_threshold = DEFAULT_DYN_LPF_FC_THRESHOLD;
 #endif
 
 }

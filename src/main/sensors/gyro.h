@@ -156,7 +156,10 @@ typedef struct gyroConfig_s {
     uint16_t dynlpf_fmin;
     uint16_t dynlpf_fmax;
     uint16_t dynlpf_gain;
+    uint16_t dynlpf_fc_fc;
+    uint16_t dynlpf_threshold;
 #endif
+
 } gyroConfig_t;
 
 PG_DECLARE(gyroConfig_t, gyroConfig);
