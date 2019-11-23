@@ -635,9 +635,11 @@ const clivalue_t valueTable[] = {
 #ifdef USE_DYN_LPF2
     { "dynlpf_fmin",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 1000 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_fmin) },
     { "dynlpf_fmax",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 1000 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_fmax) },
-    { "dynlpf_gain",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0,  100 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_gain) },
-    { "dynlpf_fc_fc",               VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 1000 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_fc_fc) },
-    { "dynlpf_threshold",           VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0, 100 },    PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_threshold) },
+    { "dynlpf_gain",                VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0,10000 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_gain) },
+    { "dynlpf_fc_fc",               VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0,  100 },   PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_fc_fc) },
+    { "dynlpf_threshold",           VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0,  100 },    PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_threshold) },
+    { "dynlpf_throttle_threshold",  VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0,  100 },    PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_throttle_threshold) },
+    { "dynlpf_throttle_gain",       VAR_UINT16 | MASTER_VALUE, .config.minmax = { 0,  100 },    PG_GYRO_CONFIG, offsetof(gyroConfig_t, dynlpf_throttle_gain) },
 #endif
 #ifdef USE_MULTI_GYRO
     { "gyro_to_use",                VAR_UINT8  | HARDWARE_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_GYRO }, PG_GYRO_CONFIG, offsetof(gyroConfig_t, gyro_to_use) },

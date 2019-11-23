@@ -20,8 +20,8 @@
 //-----
   typedef struct {
       pt1Filter_t pt1;      //PT1 filter
-
       float Fc;             //Cutoff freq
+      
       pt1Filter_t pt1Fc;    //PT1 on Fc
 
       bool Dyn_Fc;         //Dynamic E or Fixed E
@@ -30,8 +30,13 @@
 
 //VARIABLES
 //---------
-  dynLpf_t dynLpf[3];
+    dynLpf_t dynLpf[3];
 
+    float Fmin_init,Fmax;
+    float throttleThreshold;
+    float throttleGain;
+    float dynFcThreshold;
+    float dynGainOnError;     
 
 
 //////////////////////////////
@@ -60,6 +65,15 @@ void init_dynLpf2(void)
     dynLpf[0].Dyn_Fc = false;
     dynLpf[1].Dyn_Fc = false;
     dynLpf[2].Dyn_Fc = false;
+
+    Fmax                 = (float)gyroConfigMutable()->dynlpf_fmax;         //PT1 maxFc in Hz
+    Fmin_init            = (float)gyroConfigMutable()->dynlpf_fmin;         //PT1 min Fc in Hz
+   
+    throttleThreshold    = (float)gyroConfigMutable()->dynlpf_throttle_threshold;
+    throttleGain         = (float)gyroConfigMutable()->dynlpf_throttle_gain;
+
+    dynFcThreshold       = (float)(gyroConfigMutable()->dynlpf_threshold);   //Min Setpoint & Gyro value to rise PT1 Fc
+    dynGainOnError       = (float)(gyroConfigMutable()->dynlpf_gain);        
 }
 
 //////////////////////////////
@@ -72,52 +86,46 @@ void init_dynLpf2(void)
 
 FAST_CODE float dynLpf_process(dynLpf_t* filter, float input, float target) {
 
-float newFc;
-float Fmin              = (float)gyroConfigMutable()->dynlpf_fmin;
-float Fmax              = (float)gyroConfigMutable()->dynlpf_fmax;
-float DynGain           = (float)(gyroConfigMutable()->dynlpf_gain) * 0.1f;
-float DynFcThreshold    = (float)(gyroConfigMutable()->dynlpf_threshold);
+float newFc, Fmin, throttle;
 
+Fmin = Fmin_init;
+throttle  = (getRcDeflection(THROTTLE) + 1.0f)* 50.0f;        //Throttle scale to 0-100%
 const float gyroDt = gyro.targetLooptime * 1e-6f;
 
     //Check if we are in dynamic or fixed "e"
     //---------------------------------------
         if(filter->Dyn_Fc) {
-            if (((float)(fabs(target)) <= (DynFcThreshold - DYN_E_HYTEREIS)) && ((float)(fabs(filter->pt1.state)) <= (DynFcThreshold - DYN_E_HYTEREIS))) {
+            if (((float)(fabs(target)) <= (dynFcThreshold - DYN_E_HYTEREIS)) && ((float)(fabs(filter->pt1.state)) <= (dynFcThreshold - DYN_E_HYTEREIS))) {
                 filter->Dyn_Fc = false;
             }
         }else{
             //Enable Dyn_Fc when stick or Quad move
-            if (((float)(fabs(target)) >= (DynFcThreshold + DYN_E_HYTEREIS)) || ((float)(fabs(filter->pt1.state)) >= (DynFcThreshold + DYN_E_HYTEREIS))) {
+            if (((float)(fabs(target)) >= (dynFcThreshold + DYN_E_HYTEREIS)) || ((float)(fabs(filter->pt1.state)) >= (dynFcThreshold + DYN_E_HYTEREIS))) {
                 filter->Dyn_Fc = true;
             }
         }
 
+    //Rise Fmin according to Throttle;
+    //--------------------------------
+        if(throttle > throttleThreshold){
+            Fmin += (throttleThreshold - throttle) * throttleGain;
+        }
+
+
     //Compute e & Fc
     //--------------
-        if(getRcDeflection(THROTTLE) > 0.0f){
-            //If throttle > 50%, Fc=Fmax
-                newFc = Fmax;
-
-        }else if(filter->Dyn_Fc) {
+        if(filter->Dyn_Fc) {
             //Avoid division by 0.0f
                 if(target == 0.0f)              { target = 0.00001f; }
-                if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.00001f; }
+                if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.000001f; }
 
-            //Compute e factor : e = Gain * Error / Avg(target;filtered)
-                float e, Average, Error, signalInput;
-
-                //signalInput = filter->pt1.state;
-                signalInput = input;
-
-                Average  = (target + signalInput) * 0.5f;
-                Error = (float)(fabs( target - signalInput ));
+            //Compute e factor : Fc = Gain * Error / Avg(target;filtered)
+                float Average, Error;
+                Average  = (target + input) * 0.5f;
+                Error = (float)(fabs( target - input ));
             
-            
-                e = (DynGain * Error / Average );
-
-            //New freq
-                newFc = Fmax * e;
+            //New freq            
+                newFc = dynGainOnError * ( Error / Average );
 
         } else {
                 newFc  = Fmin;
@@ -133,7 +141,6 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
 
         //High Limit
         if(newFc > Fmax)  { newFc  = Fmax; }
-
 
 
     //Update PT1 filter
@@ -159,7 +166,9 @@ FAST_CODE float dynLpf2Apply(int axis, float input) {
 
 float output;
 float target = getSetpointRate(axis);
-  //Apply filter
+
+
+  //Apply filter if filter is enable.
     if(gyroConfigMutable()->dynlpf_gain > 0) {
       output = dynLpf_process(&dynLpf[axis], input, target);
     }else{

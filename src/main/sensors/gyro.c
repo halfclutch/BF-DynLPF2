@@ -203,6 +203,8 @@ void pgResetFn_gyroConfig(gyroConfig_t *gyroConfig)
     gyroConfig->dynlpf_gain = DEFAULT_DYN_LPF_GAIN;
     gyroConfig->dynlpf_fc_fc = DEFAULT_DYN_LPF_FC_FC;
     gyroConfig->dynlpf_threshold = DEFAULT_DYN_LPF_FC_THRESHOLD;
+    gyroConfig->dynlpf_throttle_threshold = DEFAULT_DYN_LPF_THROTTLE_THRESHOLD;
+    gyroConfig->dynlpf_throttle_gain = DEFAULT_DYN_LPF_THROTTLE_GAIN;
 #endif
 
 }
