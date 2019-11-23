@@ -14,7 +14,7 @@
 
 #include "sensors/gyro.h"
 
-#include "fc/rc.h"
+#include "fc/rc_controls.h"
 
 //TYPES
 //-----
@@ -86,10 +86,11 @@ void init_dynLpf2(void)
 
 FAST_CODE float dynLpf_process(dynLpf_t* filter, float input, float target) {
 
-float newFc, Fmin, throttle;
+float newFc, Fmin;
+float throttle;
 
 Fmin = Fmin_init;
-throttle  = (getRcDeflection(THROTTLE) + 1.0f)* 50.0f;        //Throttle scale to 0-100%
+throttle  = (rcCommand[THROTTLE] - 1000.0f) * 0.1f;
 const float gyroDt = gyro.targetLooptime * 1e-6f;
 
     //Check if we are in dynamic or fixed "e"
@@ -108,7 +109,7 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
     //Rise Fmin according to Throttle;
     //--------------------------------
         if(throttle > throttleThreshold){
-            Fmin += (throttleThreshold - throttle) * throttleGain;
+            Fmin += (throttle - throttleThreshold) * throttleGain;
         }
 
 
@@ -117,7 +118,7 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
         if(filter->Dyn_Fc) {
             //Avoid division by 0.0f
                 if(target == 0.0f)              { target = 0.00001f; }
-                if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.000001f; }
+                if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.0001f; }
 
             //Compute e factor : Fc = Gain * Error / Avg(target;filtered)
                 float Average, Error;
