@@ -120,13 +120,14 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
                 if(target == 0.0f)              { target = 0.00001f; }
                 if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.0001f; }
 
-            //Compute e factor : Fc = Gain * Error / Avg(target;filtered)
+            //Compute e factor
                 float Average, Error;
                 Average  = (target + input) * 0.5f;
-                Error = (float)(fabs( target - input ));
-            
-            //New freq            
-                newFc = dynGainOnError * ( (Error * Error) / Average );
+                Error = ((float)fabs( target - input )) / Average;
+                Error *= 10.0f;
+
+            //New freq  
+                newFc = Fmin + dynGainOnError * (Error * Error);
 
         } else {
                 newFc  = Fmin;
@@ -134,15 +135,14 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
 
     //Limit & Filter newFc
     //---------------------
-        //Low Limit (Limit dysmetry is volonter. Higher rise time, lower fall time)
+        //Low Limit
         if(newFc < Fmin)  { newFc  = Fmin; }
-
-        //Filter the cut-off freq ;)
-        newFc = pt1FilterApply(&filter->pt1Fc, newFc);
 
         //High Limit
         if(newFc > Fmax)  { newFc  = Fmax; }
 
+        //Filter the cut-off freq ;)
+        newFc = pt1FilterApply(&filter->pt1Fc, newFc);
 
     //Update PT1 filter
     //------------------
