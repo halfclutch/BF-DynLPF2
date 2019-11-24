@@ -126,7 +126,7 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
                 Error = (float)(fabs( target - input ));
             
             //New freq            
-                newFc = dynGainOnError * ( Error / Average );
+                newFc = dynGainOnError * ( (Error * Error) / Average );
 
         } else {
                 newFc  = Fmin;
