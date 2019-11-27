@@ -93,8 +93,8 @@ Fmin = Fmin_init;
 throttle  = (rcCommand[THROTTLE] - 1000.0f) * 0.1f;
 const float gyroDt = gyro.targetLooptime * 1e-6f;
 
-    //Check if we are in dynamic or fixed "e"
-    //---------------------------------------
+    //Check if setpoint or gyro are high enought to compute "e" ratio
+    //---------------------------------------------------------------
         if(filter->Dyn_Fc) {
             if (((float)(fabs(target)) <= (dynFcThreshold - DYN_E_HYTEREIS)) && ((float)(fabs(filter->pt1.state)) <= (dynFcThreshold - DYN_E_HYTEREIS))) {
                 filter->Dyn_Fc = false;
@@ -121,13 +121,15 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
                 if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.0001f; }
 
             //Compute e factor
-                float Average, Error;
-                Average  = (target + input) * 0.5f;
-                Error = ((float)fabs( target - input )) / Average;
-                Error *= 10.0f;
+                float Average, Error, e;
+                Average = (target + input) * 0.5f;
+                Error   =  (float)fabs( target - input );
+
+                e =  Error / Average;                       //Compute ratio between Error and average
 
             //New freq  
-                newFc = Fmin + dynGainOnError * (Error * Error);
+                e = 10.0f * e;                              //Scaling, to have a lower "dynGainOnError"            
+                newFc = Fmin + dynGainOnError * (e * e);    //Square e and multiply by a gain
 
         } else {
                 newFc  = Fmin;
