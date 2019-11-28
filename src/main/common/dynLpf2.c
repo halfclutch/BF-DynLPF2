@@ -116,6 +116,7 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
     //Compute e & Fc
     //--------------
         if(filter->Dyn_Fc) {
+
             //Avoid division by 0.0f
                 if(target == 0.0f)              { target = 0.00001f; }
                 if(filter->pt1.state == 0.0f)   { filter->pt1.state = 0.0001f; }
@@ -128,8 +129,8 @@ const float gyroDt = gyro.targetLooptime * 1e-6f;
                 e =  Error / Average;                       //Compute ratio between Error and average
 
             //New freq  
-                e = 10.0f * e;                              //Scaling, to have a lower "dynGainOnError"            
-                newFc = Fmin + dynGainOnError * (e * e);    //Square e and multiply by a gain
+                e = 10.0f * e;                                  //Scaling, to have a lower "dynGainOnError"            
+                newFc = Fmin + dynGainOnError * powf(e, 3.0f);  //"e" power 3 and multiply by a gain
 
         } else {
                 newFc  = Fmin;
